@@ -5,7 +5,8 @@ export interface ABMasonryItem {
 }
 
 export interface ABMasonryOptions {
-    cols?: number;
+    columns?: number;
     gap?: string;
     lazy?: boolean;
+    overlayZIndex?: number;
 }

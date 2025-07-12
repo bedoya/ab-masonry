@@ -84,7 +84,7 @@ describe( 'ABMasonry', () => {
             description: `Image ${ i }`,
         } ) );
 
-        const gallery = new ABMasonry( '#gallery', items, { cols: 2 } );
+        const gallery = new ABMasonry( '#gallery', items, { columns: 2 } );
 
         // Wait for all image loading + layout
         await new Promise( ( r ) => setTimeout( r, 100 ) );
@@ -121,7 +121,7 @@ describe( 'ABMasonry', () => {
         } );
 
         it( 'initializes the correct number of columns', () => {
-            const gallery = new ABMasonry( '#gallery', [], { cols: 4 } );
+            const gallery = new ABMasonry( '#gallery', [], { columns: 4 } );
             const columns = document.querySelectorAll( '.ab-masonry__column' );
             expect( columns.length ).toBe( 4 );
             columns.forEach( col => {

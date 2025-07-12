@@ -1,6 +1,6 @@
-import type { ABMasonryItem, ABMasonryOptions } from './types';
-import { ABMasonryDefaultOptions } from './defaults.ts';
-import './style.css';
+import type { ABMasonryItem, ABMasonryOptions } from '@/types';
+import { ABMasonryDefaultOptions } from '@/defaults';
+import '@/ab-masonry.css';
 
 /**
  * ABGallery
@@ -42,7 +42,7 @@ export class ABMasonry {
     /**
      * Normalized options including column count, gap, etc.
      */
-    private opts: Required<ABMasonryOptions>;
+    private options: Required<ABMasonryOptions>;
 
     /**
      * Array of column containers used to arrange the masonry layout.
@@ -75,8 +75,8 @@ export class ABMasonry {
         }
         this.container = element;
         this.items = items;
-        this.opts = { ...ABMasonryDefaultOptions, ...options };
-        this.columnHeights = Array( this.opts.cols ).fill( 0 );
+        this.options = { ...ABMasonryDefaultOptions, ...options };
+        this.columnHeights = Array( this.options.columns ).fill( 0 );
 
         this.overlay = this.createOverlay();
         document.body.appendChild( this.overlay );
@@ -94,10 +94,10 @@ export class ABMasonry {
      * Can be called manually to re-render with current items/options.
      */
     private render(): void {
-        this.columns = this.addColumns( this.opts.cols );
+        this.columns = this.addColumns( this.options.columns );
 
         this.items.forEach( async item => {
-            const element: HTMLDivElement | null = await this.createImageContainer( item );
+            const element: HTMLDivElement | null = await this.createItemContainer( item );
             if ( !element ) {
                 return;
             }
@@ -105,6 +105,8 @@ export class ABMasonry {
             this.columns[ idx ].appendChild( element );
             this.columnHeights[ idx ] += element.getBoundingClientRect().height;
         } );
+        this.columns.forEach( col => this.container.appendChild( col ) );
+        console.log( '[Rendering]', { options: this.options, items: this.items, element: this.container, columns: this.columns } );
     }
 
     /**
@@ -121,14 +123,23 @@ export class ABMasonry {
      * @returns {Promise<HTMLDivElement | null>} A Promise that resolves to the fully‑styled
      *                                           `<div>` or `null` if the image fails to load.
      */
-    private createImageContainer( item: ABMasonryItem ): Promise<HTMLDivElement | null> {
+    private createItemContainer( item: ABMasonryItem ): Promise<HTMLDivElement | null> {
         return new Promise( resolve => {
             const img: HTMLImageElement = new Image();
             img.src = item.url;
             img.loading = 'lazy';
 
             img.onload = () => {
-                const container: HTMLDivElement = this.buildImageDiv( item, img );
+                const container: HTMLDivElement = document.createElement('div');
+                container.className = 'ab-masonry__item';
+                container.appendChild( this.createImageElement( img ) );
+                if ( item.description ) {
+                    container.appendChild( this.buildCaption( item.description ) );
+                }
+                container.addEventListener( 'click', () => {
+                    this.showOverlay( item );
+                } );
+
                 resolve( container );
             };
 
@@ -143,33 +154,15 @@ export class ABMasonry {
      * Sets the correct size based on the image's aspect ratio and column width.
      * Optionally adds a caption overlay if `description` is provided.
      *
-     * @param {ABMasonryItem} item The image item (url, description, etc.).
      * @param {HTMLImageElement} img A preloaded HTMLImageElement used to extract dimensions.
      *
      * @returns {HTMLDivElement} A styled `<div>` representing the image in the gallery.
      */
-    private buildImageDiv( item: ABMasonryItem, img: HTMLImageElement ): HTMLDivElement {
-        const container: HTMLDivElement = document.createElement( 'div' );
-        container.className = 'ab-masonry__item';
-        container.style.backgroundImage = `url("${ item.url }")`;
-        container.style.backgroundSize = 'cover';
-        container.style.backgroundPosition = 'center';
-        container.addEventListener( 'click', () => {
-            this.showOverlay( item );
-        } );
+    private createImageElement( img: HTMLImageElement ): HTMLImageElement {
+        img.style.width  = '100%';
+        img.style.height = 'auto';
 
-        const columnWidth: number = this.columns[ 0 ].clientWidth;
-        const width: number = this.getProportionSize( img.width, img.height, columnWidth, 'w' );
-        const height: number = this.getProportionSize( img.width, img.height, columnWidth, 'h' );
-
-        container.style.width = `${ width }px`;
-        container.style.height = `${ height }px`;
-
-        if ( item.description ) {
-            container.appendChild( this.buildCaption( item.description ) );
-        }
-
-        return container;
+        return img;
     }
 
     /**
@@ -194,30 +187,6 @@ export class ABMasonry {
     private getShortestColumnIndex(): number {
         const min: number = Math.min( ...this.columnHeights );
         return this.columnHeights.indexOf( min );
-    }
-
-    /**
-     * Calculates a proportional dimension that preserves the original aspect ratio.
-     *
-     * @param {number} originalWidth  The image’s natural width in pixels.
-     * @param {number} originalHeight The image’s natural height in pixels.
-     * @param {number} base           The reference size (usually column width).
-     * @param {string} axis           `'w'` to return the proportional width, `'h'` for height.
-     *
-     * @returns {number} The dimension (in pixels) that maintains the aspect ratio on the specified axis.
-     */
-    private getProportionSize(
-        originalWidth: number,
-        originalHeight: number,
-        base: number,
-        axis: 'w' | 'h'
-    ): number {
-        if ( originalWidth === 0 || originalHeight === 0 ) {
-            return 0;
-        }
-        const ratio: number = originalWidth / originalHeight;
-
-        return axis === 'w' ? base : Math.round( base / ratio );
     }
 
     /**
@@ -256,6 +225,8 @@ export class ABMasonry {
      */
     private createOverlay(): HTMLDivElement {
         let overlay: HTMLDivElement = document.createElement( 'div' );
+        document.documentElement.style.setProperty( '--ab-masonry-overlay-z', this.options.overlayZIndex.toString() );
+
         overlay.className = 'ab-masonry__overlay';
 
         overlay.addEventListener( 'click', () => {

@@ -1,3 +1,8 @@
+:root {
+    --ab-masonry-overlay-z: 2147483647;
+    --ab-gap: 16px;
+}
+
 .ab-masonry {
     display: flex;
     gap: var(--ab-gap, 1em);
@@ -16,6 +21,12 @@
     position: relative;
     overflow: hidden;
     cursor: pointer;
+}
+
+.ab-masonry__item img {
+    width: 100%;
+    height: auto;
+    display: block;
 }
 
 .ab-masonry__caption {
@@ -39,16 +50,11 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 9999;
+    z-index: var(--ab-masonry-overlay-z);
     padding: 1rem;
     opacity: 0;
     transition: opacity 0.3s ease;
     pointer-events: none;
-}
-
-.ab-masonry__overlay--visible {
-    opacity: 1;
-    pointer-events: auto;
 }
 
 .ab-masonry__modal {

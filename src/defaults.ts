@@ -1,7 +1,8 @@
-import type { ABMasonryOptions } from './types';
+import type { ABMasonryOptions } from '@/types';
 
 export const ABMasonryDefaultOptions: Required<ABMasonryOptions> = {
-    cols: 3,
+    columns: 3,
     gap: '16px',
     lazy: false,
+    overlayZIndex: 2147483647,
 };

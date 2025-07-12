@@ -1,30 +1,29 @@
 import { defineConfig } from 'vite';
-import dts from 'vite-plugin-dts';
-import { fileURLToPath } from 'node:url';
-import path from 'node:path';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __filename = fileURLToPath( import.meta.url );
+const __dirname = dirname( __filename );
 
 export default defineConfig( {
+    resolve: {
+        alias: {
+            '@': resolve( __dirname, 'src' ),
+        }
+    },
     build: {
         lib: {
-            entry: path.resolve( __dirname, 'src/index.ts' ),
+            entry: resolve(__dirname, 'src/index.ts'),
             name: 'ABMasonry',
-            fileName: (format) => `index.${format}.js`,
-            formats: [ 'es', 'umd' ],
+            fileName: 'ab-masonry',
+            formats: ['es'],
         },
         rollupOptions: {
             external: [],
             output: {
-                assetFileNames: ( assetInfo ) => {
-                    if ( assetInfo.name && assetInfo.name.endsWith( '.css' ) ) {
-                        return 'style/[name].[ext]';
-                    }
-                    return '[name].[ext]';
-                },
+                assetFileNames: 'ab-masonry.css',
+                exports: 'default',
             },
         },
     },
-    plugins: [ dts() ],
 } );
