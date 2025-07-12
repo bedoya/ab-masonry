@@ -24,7 +24,11 @@
     "ab-masonry"
   ],
   "main": "./dist/index.umd.js",
-  "module": "./dist/index.js",
+  "module": "./dist/index.es.js",
+  "exports": {
+    "import": "./dist/index.es.js",
+    "require": "./dist/index.umd.js"
+  },
   "types": "./dist/index.d.ts",
   "scripts": {
     "dev": "vite",
@@ -34,6 +38,7 @@
     "test:ui": "vitest --ui"
   },
   "devDependencies": {
+    "@types/node": "^24.0.13",
     "@vitest/ui": "^3.2.4",
     "jsdom": "^26.1.0",
     "typescript": "~5.8.3",
