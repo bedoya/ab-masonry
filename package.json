@@ -3,23 +3,29 @@
   "private": false,
   "version": "1.0.0",
   "description": "Lightweight Masonry Image Gallery in Vanilla TypeScript",
-  "author": "Andrés Bedoya",
+  "author": "Andrés Bedoya <andres@bedoya.co>",
   "license": "MIT",
-  "main": "./dist/index.umd.js",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "homepage": "https://github.com/bedoya/ab-masonry#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bedoya/ab-masonry.git"
+  },
+  "bugs": {
+    "url": "https://github.com/bedoya/ab-masonry/issues"
+  },
   "keywords": [
     "masonry",
     "gallery",
-    "image-grid",
+    "image",
     "typescript",
     "vanilla-js",
-    "responsive-layout",
-    "masonry-layout",
-    "photo-gallery",
-    "image-gallery",
-    "lightweight"
+    "responsive",
+    "layout",
+    "ab-masonry"
   ],
+  "main": "./dist/index.umd.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
