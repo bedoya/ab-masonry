@@ -8,17 +8,14 @@
  * This mock ensures that any `new Image()` used inside components
  * or libraries behaves predictably during tests.
  */
-globalThis.Image = class {
-    src = '';
-    width = 400;
-    height = 300;
-    loading = 'lazy';
-    onload: () => void = () => {
-    };
-    onerror: () => void = () => {
-    };
+export function mockLoadImage(): HTMLImageElement {
+    const img = document.createElement( 'img' );
+    img.src = 'https://example.com/image.jpg';
+    img.width = 400;
+    img.height = 300;
+    img.loading = 'lazy';
 
-    constructor() {
-        setTimeout( () => this.onload?.(), 5 );
-    }
-} as unknown as typeof Image;
+    setTimeout( () => img.onload?.( new Event( 'load' ) ), 0 );
+
+    return img;
+}

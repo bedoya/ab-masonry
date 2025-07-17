@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -22,8 +22,19 @@ export default defineConfig( {
             external: [],
             output: {
                 assetFileNames: 'ab-masonry.css',
-                exports: 'default',
+                exports: 'named',
             },
         },
     },
+     test: {
+         coverage: {
+             provider: 'v8',
+             reportsDirectory: './coverage',
+             reporter: [ 'text', 'html' ],
+         },
+         setupFiles: [ 'tests/helpers/image-mock.ts' ],
+         environment: 'jsdom',
+         globals: true,
+         include: [ 'tests/**/*.{test,spec}.ts' ],
+    }
 } );

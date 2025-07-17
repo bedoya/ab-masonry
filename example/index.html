@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>ABMasonry Demo</title>
+        <link rel="stylesheet" href="../dist/ab-masonry.css">
+    </head>
+    <body>
+        <div id="masonry"></div>
+
+        <script type="module">
+            import { ABMasonry } from '../dist/ab-masonry.js';
+
+            window.addEventListener( 'DOMContentLoaded', async () => {
+                const widths = [ 500, 600, 700, 800, 900 ];
+                const heights = [ 300, 400, 500, 600 ];
+                let items = [];
+                let columns = 3;
+
+                for( let i = 0; i < Math.floor( Math.random() * 24 ) + ( columns * 2 ); i ++ ){
+                    const { title, sentence } = await (async () => {
+                        const res  = await fetch(
+                            'https://fakerapi.it/api/v1/texts?_locale=en&_quantity=1&_characters=120'
+                        );
+                        const json = await res.json();
+                        return { title: json.data[ 0 ].title, sentence: json.data[ 0 ].content };
+                    })();
+
+                    items.push( {
+                        title: title,
+                        caption: sentence,
+                        img: `https://placehold.co/${ widths[ Math.floor( Math.random() * widths.length ) ].toString() }x${ heights[ Math.floor( Math.random() * heights.length  ) ].toString() }`,
+                    } );
+                }
+
+                try{
+                    const masonry = await ABMasonry.create( '#masonry', items, { columns, gap: 16 } );
+                    masonry.render();
+                }
+                catch ( e ) {
+                    console.error( '[ABMasonry error]', e );
+                }
+            } );
+
+        </script>
+    </body>
+</html>

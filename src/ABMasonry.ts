@@ -1,43 +1,30 @@
-import type { ABMasonryItem, ABMasonryOptions } from '@/types';
+import { ABMasonryItem, ABMasonryOptions } from '@/types';
 import { ABMasonryDefaultOptions } from '@/defaults';
-import '@/ab-masonry.css';
+import { ABMasonryColumn } from '@/ABMasonryColumn';
+import { ABMasonryElement } from '@/ABMasonryElement';
+import { ABMasonryRenderer } from '@/ABMasonryRenderer';
+import { ABMasonryOverlay } from '@/ABMasonryOverlay';
 
 /**
  * ABGallery
  * ----------
  * Lightweight, dependency-free masonry image gallery.
  *
- * Features:
- * - Responsive column layout
- * - Proportional image scaling using background-image
- * - Automatic balancing of column height
- * - Optional image descriptions (with overlay on image and modal viewer)
- * - Full-size viewer with smooth transitions
- *
- * Usage:
- * ```ts
- * const gallery = new ABGallery('#gallery', images, { cols: 3 });
- * ```
- *
  * Parameters:
  * - selector: CSS selector for the container (e.g. '#gallery')
  * - items: array of ABMasonryItem { url, description?, link? }
  * - options: { cols?: number, gap?: string, ... }
- *
- * CSS:
- * Ensure you include the `.ab-masonry`, `.ab-masonry__item`, `.ab-masonry__overlay`, etc.
- * All styles inherit from `.ab-masonry`.
  */
 export class ABMasonry {
     /**
      * The container element where the gallery will be rendered.
      */
-    private container: HTMLElement;
+    private readonly container: HTMLElement;
 
     /**
      * The list of image items to render in the gallery.
      */
-    private items: ABMasonryItem[];
+    private readonly items!: ABMasonryItem[];
 
     /**
      * Normalized options including column count, gap, etc.
@@ -45,225 +32,133 @@ export class ABMasonry {
     private options: Required<ABMasonryOptions>;
 
     /**
-     * Array of column containers used to arrange the masonry layout.
+     * The columns of the gallery or rows if it is in horizontal view
      */
-    private columns: HTMLDivElement[] = [];
+    private columns!: ABMasonryColumn[];
 
     /**
-     * Tracks the cumulative height of each column for balancing.
+     * Responsible for injecting the column layout into the container.
      */
-    private readonly columnHeights: number[] = [];
+    private renderer!: ABMasonryRenderer;
 
     /**
-     * The fullscreen overlay used for displaying enlarged images.
+     * Overlay component used to display full-size images with optional caption/link.
      */
-    private readonly overlay: HTMLDivElement;
+    private overlay: ABMasonryOverlay;
 
     /**
-     * Creates a new masonry gallery instance and renders it into the given container.
+     * Private constructor. Use `ABMasonry.create()` to instantiate.
      *
-     * @param {string} selector A CSS selector string to identify the container element (e.g. '#gallery').
-     * @param {ABMasonryItem[]} items An array of image items to display. Each item includes a URL and optional description/link.
-     * @param {ABMasonryOptions} options Optional configuration object to override default settings (columns, gap, lazy load).
-     *
-     * @throws Error if the container element is not found in the DOM.
+     * @param {string | HTMLElement} selector The selector where the Gallery will live
+     * @param {ABMasonryItem[]} items An array of items to be displayed on the gallery
+     * @param {ABMasonryOptions} options The configuration options of the Gallery
+     * @private
      */
-    constructor( selector: string, items: ABMasonryItem[], options: ABMasonryOptions = {} ) {
+    private constructor( selector: string | HTMLElement, items: ABMasonryItem[], options: ABMasonryOptions = {} ) {
+        this.container = this.resolveContainer( selector );
+        this.items = items;
+        this.options = { ...ABMasonryDefaultOptions, ...options } as Required<ABMasonryOptions>;
+
+        this.overlay = new ABMasonryOverlay( this.options.overlayZIndex );
+    }
+
+    /**
+     * Resolves a valid container element from a selector or HTMLElement.
+     *
+     * @param {string | HTMLElement} selector - A CSS selector string or an HTMLElement reference.
+     *
+     * @returns {HTMLElement} The resolved HTMLElement.
+     * @throws If the selector is a string and no matching element is found.
+     */
+    private resolveContainer( selector: string | HTMLElement ): HTMLElement {
+        if ( selector instanceof HTMLElement ) {
+            return selector;
+        }
+
         const element = document.querySelector<HTMLElement>( selector );
         if ( !element ) {
             throw new Error( `Container "${ selector }" not found` );
         }
-        this.container = element;
-        this.items = items;
-        this.options = { ...ABMasonryDefaultOptions, ...options };
-        this.columnHeights = Array( this.options.columns ).fill( 0 );
 
-        this.overlay = this.createOverlay();
-        document.body.appendChild( this.overlay );
-
-        this.render();
+        return element;
     }
 
     /**
-     * Renders the masonry gallery by:
-     * - Creating the column containers
-     * - Loading and inserting each image into the shortest column
-     * - Adjusting column heights dynamically as images load
-     *
-     * Called automatically during construction.
-     * Can be called manually to re-render with current items/options.
+     * Initializes columns and distributes all items across them.
      */
-    private render(): void {
-        this.columns = this.addColumns( this.options.columns );
+    private async build() {
+        this.container.classList.add( 'ab-masonry' );
+        this.columns = this.createColumns( this.options.columns );
 
-        this.items.forEach( async item => {
-            const element: HTMLDivElement | null = await this.createItemContainer( item );
-            if ( !element ) {
-                return;
+        await this.distributeItems();
+    }
+
+    /**
+     * Distributes all valid items across columns,
+     * balancing based on current column heights.
+     */
+    private async distributeItems() {
+        for ( const item of this.items ) {
+            try {
+                const columnWidth: number = ( this.container.clientWidth > 0 ) ?
+                    ( this.container.clientWidth / this.options.columns ):
+                    ( 1024 / this.options.columns );
+                const element: ABMasonryElement = await ABMasonryElement.create( item, columnWidth, () => this.overlay.show( item ) );
+
+                this.columns[ this.getShortestColumn() ].appendElement( element );
             }
-            const idx = this.getShortestColumnIndex();
-            this.columns[ idx ].appendChild( element );
-            this.columnHeights[ idx ] += element.getBoundingClientRect().height;
-        } );
-        this.columns.forEach( col => this.container.appendChild( col ) );
-        console.log( '[Rendering]', { options: this.options, items: this.items, element: this.container, columns: this.columns } );
+            catch ( error ) {
+                console.warn( '[ABMasonry] Skipped item due to error:', item, error );
+            }
+        }
     }
 
     /**
-     * Builds a masonry item div once the image is loaded.
+     * Creates and returns the specified number of empty columns.
      *
-     * Workflow:
-     * 1. Pre‑loads the image to obtain its natural dimensions.
-     * 2. Creates a `<div>` with the image as `background-image`.
-     * 3. Scales the div to the column width while preserving aspect ratio.
-     * 4. Adds a caption overlay if the item has `description`.
-     *
-     * @param {ABMasonryItem} item The image data (url, description, link).
-     *
-     * @returns {Promise<HTMLDivElement | null>} A Promise that resolves to the fully‑styled
-     *                                           `<div>` or `null` if the image fails to load.
+     * @param {number} columns Number of columns to create
      */
-    private createItemContainer( item: ABMasonryItem ): Promise<HTMLDivElement | null> {
-        return new Promise( resolve => {
-            const img: HTMLImageElement = new Image();
-            img.src = item.url;
-            img.loading = 'lazy';
-
-            img.onload = () => {
-                const container: HTMLDivElement = document.createElement('div');
-                container.className = 'ab-masonry__item';
-                container.appendChild( this.createImageElement( img ) );
-                if ( item.description ) {
-                    container.appendChild( this.buildCaption( item.description ) );
-                }
-                container.addEventListener( 'click', () => {
-                    this.showOverlay( item );
-                } );
-
-                resolve( container );
-            };
-
-            img.onerror = () => resolve( null );
-        } );
+    private createColumns( columns: number = 3 ): ABMasonryColumn[] {
+        return Array.from( { length: columns }, () => new ABMasonryColumn() );
     }
 
     /**
-     * Creates the visual container for a single image item.
+     * Returns the index of the column with the least current height.
      *
-     * Uses a `div` with `background-image` instead of `<img>` for layout control.
-     * Sets the correct size based on the image's aspect ratio and column width.
-     * Optionally adds a caption overlay if `description` is provided.
-     *
-     * @param {HTMLImageElement} img A preloaded HTMLImageElement used to extract dimensions.
-     *
-     * @returns {HTMLDivElement} A styled `<div>` representing the image in the gallery.
+     * @returns {number}
      */
-    private createImageElement( img: HTMLImageElement ): HTMLImageElement {
-        img.style.width  = '100%';
-        img.style.height = 'auto';
+    private getShortestColumn(): number {
+        let shortest = 0;
 
-        return img;
-    }
-
-    /**
-     * Creates a caption overlay element for a masonry item.
-     *
-     * @param text The caption text to display.
-     *
-     * @returns {HTMLDivElement} A `<div>` element styled as an overlay caption.
-     */
-    private buildCaption( text: string ): HTMLDivElement {
-        const caption: HTMLDivElement = document.createElement( 'div' );
-        caption.className = 'ab-masonry__caption';
-        caption.textContent = text;
-        return caption;
-    }
-
-    /**
-     * Finds the column with the smallest accumulated height.
-     *
-     * @returns {number} The zero‑based index of the shortest column in `this.columnHeights`.
-     */
-    private getShortestColumnIndex(): number {
-        const min: number = Math.min( ...this.columnHeights );
-        return this.columnHeights.indexOf( min );
-    }
-
-    /**
-     * Creates and appends the specified number of columns to the container.
-     *
-     * Each column is a `<div>` with class `ab-masonry__column`. The `gap` option is applied via CSS.
-     *
-     * @param {number} count - Number of columns to create.
-     *
-     * @returns {HTMLDivElement[]} An array of the created column `<div>` elements.
-     */
-    private addColumns( count: number ): HTMLDivElement[] {
-        this.container.className = 'ab-masonry';
-        this.container.innerHTML = '';
-
-        const columns: HTMLDivElement[] = [];
-
-        for ( let i: number = 0; i < count; i++ ) {
-            const column: HTMLDivElement = document.createElement( 'div' );
-            column.className = 'ab-masonry__column';
-            this.container.appendChild( column );
-            columns.push( column );
+        for ( let i = 1; i < this.columns.length; i++ ) {
+            shortest = ( this.columns[ i ].getHeight() < this.columns[ shortest ].getHeight() ) ? i : shortest;
         }
 
-        return columns;
+        return shortest;
     }
 
     /**
-     * Builds the fullscreen overlay element used for the enlarged‑image viewer.
+     * Asynchronously creates and builds a new ABMasonry instance.
      *
-     * The overlay is initially hidden (`opacity: 0`) and becomes visible by toggling
-     * the `ab-masonry__overlay--visible` class. Clicking anywhere on the overlay
-     * closes it.
+     * @param {string | HTMLElement} selector CSS selector for the container element
+     * @param {ABMasonryItem[]} items Array of image items to render
+     * @param {ABMasonryOptions} options Optional configuration overrides
      *
-     * @returns {HTMLDivElement} A `<div>` element ready to be appended to `document.body`.
+     * @returns A fully initialized ABMasonry instance
      */
-    private createOverlay(): HTMLDivElement {
-        let overlay: HTMLDivElement = document.createElement( 'div' );
-        document.documentElement.style.setProperty( '--ab-masonry-overlay-z', this.options.overlayZIndex.toString() );
-
-        overlay.className = 'ab-masonry__overlay';
-
-        overlay.addEventListener( 'click', () => {
-            overlay.classList.remove( 'ab-masonry__overlay--visible' );
-        } );
-
-        return overlay;
+    static async create( selector: string | HTMLElement, items: ABMasonryItem[], options: ABMasonryOptions = {} ): Promise<ABMasonry> {
+        const instance: ABMasonry = new ABMasonry( selector, items, options );
+        await instance.build();
+        return instance;
     }
 
     /**
-     * Displays the fullscreen overlay with the selected image and its description.
-     *
-     * Replaces the overlay’s content with a centered `<figure>` containing the image
-     * and optional caption, and makes the overlay visible via CSS class toggle.
-     *
-     * @param {ABMasonryItem} item - The image item to display in the overlay.
+     * Renders the masonry layout by injecting columns into the container.
+     * Also applies gap styles and initializes the renderer.
      */
-    private showOverlay( item: ABMasonryItem ): void {
-        this.overlay.innerHTML = '';
-
-        const modal: HTMLElement = document.createElement( 'figure' );
-        modal.className = 'ab-masonry__modal';
-
-        const image: HTMLImageElement = document.createElement( 'img' );
-        image.src = item.url;
-        image.alt = item.description ?? '';
-        modal.appendChild( image );
-
-        if ( item.description ) {
-            const caption: HTMLElement = document.createElement( 'figcaption' );
-            caption.textContent = item.description;
-            modal.appendChild( caption );
-        }
-
-        this.overlay.appendChild( modal );
-        this.overlay.classList.add( 'ab-masonry__overlay--visible' );
-        this.overlay.style.display = 'flex';
+    public render() {
+        this.container.style.setProperty( '--ab-gap', `${ this.options.gap.toString() || 16 }px` );
+        this.renderer = new ABMasonryRenderer( this.container, this.columns );
+        this.renderer.render();
     }
-
 }
