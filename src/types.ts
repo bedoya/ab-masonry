@@ -1,6 +1,7 @@
 export interface ABMasonryItem {
-    url: string;
-    description?: string;
+    img: string;
+    title?: string;
+    caption?: string;
     link?: string;
 }
 
@@ -10,3 +11,4 @@ export interface ABMasonryOptions {
     lazy?: boolean;
     overlayZIndex?: number;
 }
+
